@@ -14,14 +14,23 @@ struct Creature {
     max_speed: f32,
 }
 
+fn velocity_with_random_direction (speed: f32) -> Vector2 {
+    let x = random_f32();
+    let y = random_f32();
+    Vector2::from((x, y)).with_magnitude(speed)
+}
+
 impl Creature {
 
     pub fn new() -> Self {
+
+        let max_speed = 10.0;
+
         Creature {
             tail: vec![],
-            v: Vector2::zero(),
+            v: velocity_with_random_direction(max_speed * 0.66),
             dv: Vector2::zero(),
-            max_speed: 10.0
+            max_speed: max_speed
         }
     }
 
@@ -29,22 +38,28 @@ impl Creature {
 
         let win = app.window_rect();
 
-        let current_position = match self.tail.first() {
-            Some(p) => *p,
-            None => pt2(win.x(), win.y())
-        };
+        // if there are no positions in your tail yet,
+        // start in the middle of the window
+        let current_position = self.get_position(win);
 
+        // the next position is current position plus current velocity
         let mut next_position = self.v + current_position;
 
         // wrap across the edges of the screen
-        if next_position.x >= win.w() {
-            next_position.x = 0.0
+        if next_position.x >= win.x.end {
+            next_position.x = win.x.start;
         }
-        if next_position.y >= win.h() {
-            next_position.y = 0.0
+        if next_position.x <= win.x.start {
+            next_position.x = win.x.end;
+        }
+        if next_position.y >= win.y.end {
+            next_position.y = win.y.start;
+        }
+        if next_position.y <= win.y.start {
+            next_position.y = win.y.end;
         }
         
-        // They move by adding a new position to the front of the tail, and truncating if necessary
+        // They move by adding a new position to the front of the tail, and then truncating
         self.tail.insert(0, next_position);
         self.tail.truncate(100);
 
@@ -59,13 +74,13 @@ impl Creature {
 
         // update acceleration
         // let's have them accelerate towards the mouse.
-        let x = next_position.x;
-        let y = next_position.y;
+        let x       = next_position.x;
+        let y       = next_position.y;
         let mouse_x = app.mouse.x;
         let mouse_y = app.mouse.y;
 
         let dv = Vector2::from((mouse_x - x, mouse_y - y));
-        let dv = dv.limit_magnitude(0.3);
+        let dv = dv.limit_magnitude(0.7);
 
         self.dv = dv;
 
@@ -88,6 +103,13 @@ impl Creature {
             .hsla(hue, 0.8, 0.8, alpha / 100.0);
         }
     }
+
+    fn get_position (&self, win: nannou::geom::rect::Rect) -> Vector2 {
+        match self.tail.first() {
+            Some(p) => *p,
+            None => pt2(win.x(), win.y())
+        }
+    }
 }
 
 struct Model {
@@ -108,8 +130,6 @@ fn update(app: &App, model: &mut Model, _update: Update) {
     }
 
 }
-
-
 
 fn view(app: &App, model: &Model, frame: &Frame){
 
